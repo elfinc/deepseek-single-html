@@ -10,6 +10,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/deepseek-single-html/',
   plugins: [
     vue(),
     vueJsx(),
@@ -31,6 +32,7 @@ export default defineConfig({
     host: '0.0.0.0',
   },
   build: {
+    outDir: 'docs',
     cssCodeSplit: false, // 避免 CSS 拆分
     assetsInlineLimit: 100000000, // 允许内联更大资源, 100MB
     rollupOptions: {
