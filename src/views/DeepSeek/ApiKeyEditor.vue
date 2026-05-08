@@ -24,16 +24,24 @@
       <el-input
         ref="refInput"
         v-model="inputText"
+        :disabled="loading"
+        @input="onInput()"
         @keyup.enter="save()"
         placeholder="请输入 API Key"
         clearable />
     </div>
     <template #footer>
       <div class="dialog-footer">
-        <!-- <el-button @click="visible = false">
-          取消
-        </el-button> -->
-        <el-button type="primary" :disabled="!inputText" @click="save()">
+        <el-icon
+          class="is-loading"
+          v-if="loading"
+          style="font-style: normal;">
+          <Loading />
+        </el-icon>
+        <div class="error-tips" v-else-if="errorTips">{{ errorTips }}</div>
+        <div v-else-if="balance !== 0">余额：{{ balance }}</div>
+        <div v-else></div>
+        <el-button type="primary" :disabled="!inputText" @click="save()" :loading="loading">
           确定
         </el-button>
       </div>
@@ -44,19 +52,26 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { QuestionFilled } from '@element-plus/icons-vue';
+import { DeepSeekClient } from '@/utils/DeepSeek';
+import { Loading } from '@element-plus/icons-vue';
 
 const refInput = ref<HTMLInputElement>();
 
 const visible = ref(false);
+const loading = ref(false);
 const inputText = ref('');
+const errorTips = ref('');
+const balance = ref(0);
 
 const promise = ref<Promise<string>>();
 const resolve = ref((value: string | PromiseLike<string>) => { });
 const reject = ref(() => { });
 
-async function open() {
+async function open(tips?: string) {
   visible.value = true;
-  inputText.value = localStorage.getItem('DeepSeekAPIKey') || '';
+  const apikey = localStorage.getItem('DeepSeekAPIKey') || '';
+  inputText.value = apikey;
+  errorTips.value = tips ?? await checkKeyValid(apikey);
   promise.value = new Promise<string>((res, rej) => {
     resolve.value = res;
     reject.value = rej;
@@ -68,9 +83,31 @@ function onOpened() {
   refInput.value?.focus();
 }
 
-function save() {
+function onInput() {
+  errorTips.value = '';
+}
+
+async function checkKeyValid(key: string) {
+  loading.value = true;
+  const client = DeepSeekClient.getInstance(key);
+  const valid = await client.checkKeyValid();
+  balance.value = valid.balance;
+  errorTips.value = valid.error;
+  loading.value = false;
+  return valid.error;
+}
+
+async function save() {
+  const value = inputText.value.trim();
+
+  const error = await checkKeyValid(value);
+  if (error) {
+    return;
+  }
+
   visible.value = false;
-  resolve.value(inputText.value.trim());
+  localStorage.setItem('DeepSeekAPIKey', value);
+  resolve.value(value);
 }
 
 defineExpose({
@@ -89,5 +126,15 @@ defineExpose({
   a {
     display: flex;
   }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-tips {
+  color: #f56c6c;
 }
 </style>

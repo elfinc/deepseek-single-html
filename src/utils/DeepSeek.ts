@@ -44,7 +44,10 @@ export type DeepSeekSaveMessage = {
 
 export type DeepSeekRequest = {
   messages: DeepSeekMessage[];
-  model?: 'deepseek-chat' | 'deepseek-reasoner';
+  model?: 'deepseek-v4-pro' | 'deepseek-v4-flash';
+  thinking?: {
+    type: 'enabled' | 'disabled';
+  }
   stream?: boolean;
   /**
    * 生成的文本长度
@@ -82,13 +85,25 @@ export type DeepSeekResponseChoice = {
 }
 
 export class DeepSeekClient {
-  private apiKey: string;
-  private baseUrl: string;
+  private static BASE_URL = 'https://api.deepseek.com';
+  static instances: Record<string, DeepSeekClient> = {};
 
-  constructor(apiKey: string, baseUrl: string = 'https://api.deepseek.com/v1') {
+  private apiKey: string;
+  private balanceCache: { value: number; timestamp: number } | null = null;
+
+  private constructor(apiKey: string) {
     if (!apiKey) throw new Error('API key is required');
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
+  }
+
+  /**
+   * 获取 DeepSeekClient 实例，基于 API key 进行单例管理
+   */
+  static getInstance(apiKey: string) {
+    if (!DeepSeekClient.instances[apiKey]) {
+      DeepSeekClient.instances[apiKey] = new DeepSeekClient(apiKey);
+    }
+    return DeepSeekClient.instances[apiKey];
   }
 
   /**
@@ -100,7 +115,7 @@ export class DeepSeekClient {
       stream: false,
     };
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await fetch(`${DeepSeekClient.BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,7 +148,7 @@ export class DeepSeekClient {
       stream: true,
     };
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await fetch(`${DeepSeekClient.BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -196,6 +211,54 @@ export class DeepSeekClient {
       reader.releaseLock(); // 释放资源
       return keepAlive;
     }
+  }
+
+  /**
+   * 查询余额
+   */
+  async getBalance() {
+    const now = Date.now();
+    if (this.balanceCache && (now - this.balanceCache.timestamp < 60 * 1000)) {
+      return this.balanceCache.value;
+    }
+
+    const response = await fetch(`${DeepSeekClient.BASE_URL}/user/balance`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`API Error [${response.status}]: ${errorData.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    const balance = +data.balance_infos[0].total_balance || 0;
+    this.balanceCache = { value: balance, timestamp: now };
+    return balance;
+  }
+
+  /**
+   * 检查 API key 是否有效
+   */
+  async checkKeyValid() {
+    let balance = 0;
+    let error = '';
+    try {
+      balance = await this.getBalance();
+      if (balance === 0) {
+        error = '余额不足';
+      }
+    } catch (e) {
+      error = 'API Key 无效';
+    }
+    return {
+      balance,
+      error,
+    };
   }
 }
 

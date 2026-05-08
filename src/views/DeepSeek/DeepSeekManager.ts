@@ -21,11 +21,12 @@ export class DeepSeekManager {
   addChat() {
     const chatItem = new ChatManager({
       key: Date.now(),
-      label: '新对话',
+      label: ChatManager.NEW_CHAT_LABEL,
       openReasoning: true,
     });
     this.chatList.unshift(chatItem);
     this.currentChatKey.value = chatItem.key;
+    chatItem.add();
     return chatItem;
   }
 

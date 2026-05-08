@@ -13,6 +13,12 @@
         <el-option label="我" value="user" />
         <el-option label="AI酱" value="assistant" />
       </el-select> -->
+      <el-tag
+        v-if="msg.role === 'system'"
+        class="role-tag"
+        type="info">
+        系统
+      </el-tag>
       <el-select
         class="message-select"
         :model-value="messageList[index - 1]?.nextKey ?? currentChat?.firstKey.value"
@@ -291,7 +297,7 @@ const messageOptions = computed(() => {
     const next = props.chat.messages[msg.nextKey!];
     const nextGroup = props.chat.groupMap.value[next?.groupKey];
     return {
-      label: msg.content.slice(0, 20),
+      label: msg.content.slice(0, 20) || '-',
       value: msg.key,
       data: msg,
       time: dayjs(msg.key).format('M-DD'),
@@ -381,6 +387,11 @@ onUnmounted(() => {
     .role-select {
       width: 80px;
       min-width: 80px;
+    }
+
+    .role-tag {
+      color: #666;
+      opacity: 0.6;
     }
 
     .message-select {

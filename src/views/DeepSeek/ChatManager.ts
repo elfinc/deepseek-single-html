@@ -28,6 +28,8 @@ export class ChatManager {
 
   static refApiKeyEditor = ref();
 
+  static NEW_CHAT_LABEL = '新对话';
+
   /**
    * 所有消息
    */
@@ -177,8 +179,11 @@ export class ChatManager {
       summary: '',
     });
     if (this.messageList.value.length == 0) {
-      this.label.value = newItem.content;
       this.firstKey.value = key;
+      newItem.role = 'system';
+    }
+    if (this.label.value === ChatManager.NEW_CHAT_LABEL && newItem.content) {
+      this.label.value = newItem.content;
     }
     if (index !== undefined) {
       const prevMessage = this.messageList.value[index - 1];
@@ -235,6 +240,10 @@ export class ChatManager {
     setDeleteKey(this.key, key);
     this.isLocal.value = false;
     this.saveChat();
+    // 如果为空，则添加一个默认消息
+    if (this.messageList.value.length === 0) {
+      this.add();
+    }
   }
 
   refresh(key: number) {
@@ -298,6 +307,9 @@ export class ChatManager {
     if (!isAdd) {
       editItem.content = content;
       this.isLocal.value = false;
+      if (this.label.value === ChatManager.NEW_CHAT_LABEL && editItem.content) {
+        this.label.value = editItem.content;
+      }
       this.saveChat();
       return;
     }
@@ -323,10 +335,18 @@ export class ChatManager {
   }
 
   async getApiKey(): Promise<string> {
+    let error = '';
     const apiKey = localStorage.getItem('DeepSeekAPIKey');
-    if (apiKey) return apiKey;
-    const newApiKey = await ChatManager.refApiKeyEditor.value?.open();
-    console.log('设置 API Key：', newApiKey);
+    if (apiKey) {
+      const client = DeepSeekClient.getInstance(apiKey);
+      error = (await client.checkKeyValid()).error;
+      if (!error) {
+        return apiKey;
+      }
+    } else {
+      error = '请设置 API Key';
+    }
+    const newApiKey = await ChatManager.refApiKeyEditor.value?.open(error);
     if (newApiKey) {
       localStorage.setItem('DeepSeekAPIKey', newApiKey);
       return newApiKey;
@@ -336,7 +356,7 @@ export class ChatManager {
 
   async fetchAnswer(key = Date.now(), groupKey?: number) {
     const apiKey = await this.getApiKey();
-    const client = new DeepSeekClient(apiKey);
+    const client = DeepSeekClient.getInstance(apiKey);
     const controller = new AbortController();
     try {
       const messages: DeepSeekMessage[] = this.messageList.value.map((message) => ({
@@ -369,7 +389,11 @@ export class ChatManager {
         max_tokens: 4096,
         temperature: this.temperature.value,
         top_p: 1,
-        model: this.openReasoning.value ? 'deepseek-reasoner' : 'deepseek-chat',
+        model: 'deepseek-v4-pro',
+        thinking: {
+          type: this.openReasoning.value ? 'enabled' : 'disabled',
+        },
+        reasoning_effort: 'high',
       } as const;
       let gen = client.createStreamingChatCompletion(params, controller.signal);
       loadingMessage.retryCount = 0;

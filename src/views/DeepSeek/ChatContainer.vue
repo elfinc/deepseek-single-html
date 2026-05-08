@@ -44,7 +44,7 @@
       <div class="bottom-btns">
         <div class="row">
           <el-button @click="openReasoning = !openReasoning">
-            {{ openReasoning ? 'R1' : 'V3' }}
+            {{ openReasoning ? '思考：开' : '思考：关' }}
           </el-button>
           <!-- <div class="setting-item" v-if="!openReasoning">
             <div class="label">
