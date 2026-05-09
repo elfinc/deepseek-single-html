@@ -29,6 +29,8 @@
         :edges="edges"
         @node-double-click="onDbClick"
         @node-click="onClick"
+        @connect="onConnect"
+        :connection-mode="ConnectionMode.Strict"
         :max-zoom="2"
         :min-zoom="0.1"
         :zoom-on-double-click="false">
@@ -51,6 +53,7 @@
         </template>
         <template #node-custom="props">
           <Handle
+            v-if="props.data.role !== 'system'"
             type="target"
             class="node-handle"
             :class="[`role-${props.data.role}`]"
@@ -83,7 +86,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick } from 'vue';
-import { VueFlow, Handle, Position, type Node, type Edge, BezierEdge, type NodeMouseEvent } from '@vue-flow/core';
+import { VueFlow, Handle, Position, type Node, type Edge, BezierEdge, type NodeMouseEvent, ConnectionMode, type Connection } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import type { ChatManager } from './ChatManager';
 import dagre from 'dagre';
@@ -270,6 +273,17 @@ function fitView() {
   }
 }
 
+async function onConnect(e: Connection) {
+  const prev = props.chat.messages[e.source];
+  const next = props.chat.messages[e.target];
+  if (!prev || !next) {
+    return;
+  }
+  props.chat.chainChange(prev.key, next.key);
+  await nextTick();
+  updateGraph();
+}
+
 defineExpose({
   open,
 });
@@ -323,6 +337,14 @@ defineExpose({
   }
 
   .node-handle {
+    width: 7px;
+    height: 7px;
+
+    &:hover {
+      width: 15px;
+      height: 15px;
+    }
+
     &.role-user {
       background: var(--role-user-color);
     }

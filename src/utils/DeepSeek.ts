@@ -218,7 +218,7 @@ export class DeepSeekClient {
    */
   async getBalance() {
     const now = Date.now();
-    if (this.balanceCache && (now - this.balanceCache.timestamp < 60 * 1000)) {
+    if (this.balanceCache && (now - this.balanceCache.timestamp < 5 * 60 * 1000)) {
       return this.balanceCache.value;
     }
 

@@ -11,13 +11,6 @@
     <template #header>
       <div class="title">
         API Key
-        <el-tooltip content="获取Key" :enterable="false" placement="top">
-          <a href="https://platform.deepseek.com/api_keys" target="_blank">
-            <el-icon color="#409EFF" size="16">
-              <QuestionFilled />
-            </el-icon>
-          </a>
-        </el-tooltip>
       </div>
     </template>
     <div class="edit-container">
@@ -32,15 +25,19 @@
     </div>
     <template #footer>
       <div class="dialog-footer">
-        <el-icon
-          class="is-loading"
-          v-if="loading"
-          style="font-style: normal;">
-          <Loading />
-        </el-icon>
-        <div class="error-tips" v-else-if="errorTips">{{ errorTips }}</div>
-        <div v-else-if="balance !== 0">余额：{{ balance }}</div>
-        <div v-else></div>
+        <div class="tips">
+          <el-icon
+            class="is-loading"
+            v-if="loading"
+            style="font-style: normal;">
+            <Loading />
+          </el-icon>
+          <div class="error-tips" v-else-if="errorTips">{{ errorTips }}</div>
+          <div v-else-if="balance !== 0">余额：{{ balance }}</div>
+        </div>
+        <el-button @click="gotoApiKey()">
+          获取 API Key
+        </el-button>
         <el-button type="primary" :disabled="!inputText" @click="save()" :loading="loading">
           确定
         </el-button>
@@ -110,6 +107,10 @@ async function save() {
   resolve.value(value);
 }
 
+function gotoApiKey() {
+  window.open('https://platform.deepseek.com/api_keys', '_blank');
+}
+
 defineExpose({
   open,
 });
@@ -132,9 +133,14 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
+  text-align: left;
 
-.error-tips {
-  color: #f56c6c;
+  .tips {
+    flex: 1;
+  
+    .error-tips {
+      color: #f56c6c;
+    }
+  }
 }
 </style>

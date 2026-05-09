@@ -8,7 +8,7 @@
         <div class="list">
           <ChatMessage
             v-for="(item, index) in messageList"
-            :key="index"
+            :key="item.key"
             :msg="item"
             :index="index"
             @openChatFlow="refChatFlow?.open"
@@ -43,9 +43,9 @@
 
       <div class="bottom-btns">
         <div class="row">
-          <el-button @click="openReasoning = !openReasoning">
+          <!-- <el-button @click="openReasoning = !openReasoning">
             {{ openReasoning ? '思考：开' : '思考：关' }}
-          </el-button>
+          </el-button> -->
           <!-- <div class="setting-item" v-if="!openReasoning">
             <div class="label">
               发散

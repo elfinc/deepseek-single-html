@@ -218,6 +218,30 @@ export class ChatManager {
     if (index === -1) {
       return;
     }
+    // 删除消息时，如果不是切分消息，则同时删除后续关联的消息
+    const removeKeys = new Set<number>([key]);
+    if (!isSlice) {
+      const queue = [key];
+      while (queue.length) {
+        const currKey = queue.shift()!;
+        const nextKey = this.messages[currKey]?.nextKey;
+        const next = this.messages[nextKey!];
+        if (nextKey && next) {
+          const groupKey = next.groupKey;
+          this.groupMap.value[groupKey]?.forEach(item => {
+            if (!removeKeys.has(item.key)) {
+              queue.push(item.key);
+              removeKeys.add(item.key);
+            }
+          });
+          if (!removeKeys.has(nextKey)) {
+            queue.push(nextKey);
+            removeKeys.add(nextKey);
+          }
+        }
+      }
+    }
+    // 调整关联关系，或切换到同组的其他消息
     const prev = this.messageList.value[index - 1];
     if (prev) {
       const curr = this.messageList.value[index];
@@ -236,8 +260,10 @@ export class ChatManager {
         }
       }
     }
-    delete this.messages[key];
-    setDeleteKey(this.key, key);
+    removeKeys.forEach((key) => {
+      delete this.messages[key];
+      setDeleteKey(this.key, key);
+    });
     this.isLocal.value = false;
     this.saveChat();
     // 如果为空，则添加一个默认消息
@@ -265,19 +291,37 @@ export class ChatManager {
     }
   }
 
-  groupChange(currentKey: number, targetKey: number) {
-    const prev = this.messageList.value.find((item) => item.nextKey === currentKey);
-    if (prev) {
-      prev.nextKey = targetKey;
-    } else {
-      this.firstKey.value = targetKey;
+  chainChange(prevKey: number, nextKey: number) {
+    const prev = this.messages[prevKey];
+    const next = this.messages[nextKey];
+    if (!prev || !next || prev.nextKey === nextKey || prevKey === nextKey) {
+      return;
     }
-    this.expand(targetKey, true);
+    // 切换旧组
+    const nextPrevKey = this.prevKeyMap.value[next.key];
+    const nextPrev = this.messages[nextPrevKey];
+    if (nextPrev) {
+      const groupKey = this.messages[next.key]?.groupKey;
+      const group = this.groupMap.value[groupKey!];
+      const otherKey = group?.find((item) => item.key !== next.key)?.key;
+      nextPrev.nextKey = otherKey;
+    }
+    // 切换新组
+    const groupKey = this.messages[prev.nextKey!]?.groupKey;
+    if (groupKey) {
+      next.groupKey = groupKey;
+    } else {
+      next.groupKey = Date.now();
+      prev.nextKey = next.key;
+    }
+    if (this.firstKey.value === next.key) {
+      this.trackFirstKey(next.key);
+    }
+    this.isLocal.value = false;
     this.saveChat();
   }
 
-  switchToMessage(targetKey: number) {
-    let key = targetKey;
+  trackFirstKey(key: number) {
     const hasKey = {} as { [key: number]: boolean };
     while (true) {
       if (hasKey[key]) {
@@ -293,6 +337,10 @@ export class ChatManager {
       prev.nextKey = key;
       key = prevKey;
     }
+  }
+
+  switchToMessage(targetKey: number) {
+    this.trackFirstKey(targetKey);
     this.expandAll(false);
     this.expandAll(true);
     this.scrollToKey(targetKey);
@@ -391,7 +439,8 @@ export class ChatManager {
         top_p: 1,
         model: 'deepseek-v4-pro',
         thinking: {
-          type: this.openReasoning.value ? 'enabled' : 'disabled',
+          // type: this.openReasoning.value ? 'enabled' : 'disabled',
+          type: 'enabled',
         },
         reasoning_effort: 'high',
       } as const;
