@@ -434,7 +434,7 @@ export class ChatManager {
 
       const params = {
         messages,
-        max_tokens: 4096,
+        max_tokens: 393216,
         temperature: this.temperature.value,
         top_p: 1,
         model: 'deepseek-v4-pro',
@@ -474,6 +474,7 @@ export class ChatManager {
         if (chunk.delta.reasoning_content) {
           if (!gotReasoning) {
             gotReasoning = true;
+            this.hasExpand[`${message.key}_content`] = true;
           }
           message.reasoning_content += chunk.delta.reasoning_content;
         }
