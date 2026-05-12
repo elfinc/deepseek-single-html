@@ -92,6 +92,7 @@ watch(() => status.value, (value) => {
 
   >* {
     pointer-events: auto;
+    box-shadow: 0 0 0 2px #fff;
   }
 }
 

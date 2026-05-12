@@ -19,6 +19,12 @@
         type="info">
         系统
       </el-tag>
+      <el-tag
+        v-if="msg.role === 'assistant'"
+        class="role-tag"
+        type="info">
+        AI
+      </el-tag>
       <el-select
         class="message-select"
         :model-value="messageList[index - 1]?.nextKey ?? currentChat?.firstKey.value"
@@ -378,7 +384,11 @@ onUnmounted(() => {
   }
 
   .options {
+    position: sticky;
+    top: 8px;
+    z-index: 1;
     margin: 0 20px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -390,8 +400,9 @@ onUnmounted(() => {
     }
 
     .role-tag {
-      color: #666;
-      opacity: 0.6;
+      color: #888;
+      pointer-events: none;
+      border: none;
     }
 
     .message-select {
@@ -416,7 +427,7 @@ onUnmounted(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 10px;
+    margin-bottom: 10px;
     opacity: 0.5;
     display: flex;
     overflow: hidden;
@@ -444,7 +455,6 @@ onUnmounted(() => {
   .content {
     position: relative;
     margin: 0 20px;
-    margin-top: 10px;
     border-radius: 15px;
     width: calc(100% - var(--side-width));
     max-height: 100px;
@@ -529,6 +539,11 @@ onUnmounted(() => {
 
   &.assistant-role {
     align-items: flex-start;
+
+    .role-tag {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
 
     .content {
       min-width: 600px;
