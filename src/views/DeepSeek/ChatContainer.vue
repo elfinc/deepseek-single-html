@@ -58,6 +58,21 @@
               :step="0.1">
             </el-slider>
           </div> -->
+          <el-tooltip
+            :content="`已使用 ${lastMessage?.total_tokens || 0} 个Token，最大 ${MAX_TOKENS} 个Token`"
+            placement="top-start"
+            :enterable="false"
+            :show-after="200"
+            :hide-after="0">
+            <el-tag
+              class="token-count"
+              disable-transitions
+              size="large"
+              type="info">
+              <div class="progress" :style="{ width: usageTokenRate + '%' }"></div>
+              {{ usageTokenRate }}<small>%</small>
+            </el-tag>
+          </el-tooltip>
         </div>
         <div class="row" style="flex: 1;">
           <el-button
@@ -87,6 +102,7 @@
                 <el-tag
                   class="tag"
                   :style="{ visibility: item.nextCount ? 'visible' : 'hidden' }"
+                  disable-transitions
                   size="small"
                   type="info">
                   {{ item.nextCount }}
@@ -126,7 +142,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, ref, watch, type UnwrapRef } from 'vue';
-import type { ChatManager } from './ChatManager';
+import { MAX_TOKENS, type ChatManager } from './ChatManager';
 import ChatMessage from './ChatMessage.vue';
 import ChatFlow from './ChatFlow.vue';
 import { Top, Close, Star, Grape } from '@element-plus/icons-vue';
@@ -146,6 +162,9 @@ const today = dayjs().format('M-DD');
 const selectFilterInput = ref<string>('');
 const messageList = computed(() => props.chat.messageList.value);
 const lastMessage = computed(() => messageList.value[messageList.value.length - 1]);
+const usageTokenRate = computed(() => {
+  return +((lastMessage.value?.total_tokens || 0) / MAX_TOKENS * 100).toFixed(1);
+});
 const loadingMessage = computed(() => {
   const last = messageList.value[messageList.value.length - 1];
   return props.chat.loadingMessages[last?.key]?.message ?? undefined;
@@ -357,6 +376,24 @@ input:focus {
 
   .select {
     max-width: 160px;
+  }
+
+  .token-count {
+    position: relative;
+    font-size: 12px;
+    width: 64px;
+    color: #666;
+    background: #eee5;
+    overflow: hidden;
+
+    .progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background: #fff;
+      opacity: 0.8;
+    }
   }
 
   .setting-item {

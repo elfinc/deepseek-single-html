@@ -15,12 +15,14 @@
       </el-select> -->
       <el-tag
         v-if="msg.role === 'system'"
+        disable-transitions
         class="role-tag"
         type="info">
         系统
       </el-tag>
       <el-tag
         v-if="msg.role === 'assistant'"
+        disable-transitions
         class="role-tag"
         type="info">
         AI
@@ -63,6 +65,7 @@
             <el-tag
               class="tag"
               :style="{ visibility: item.nextCount ? 'visible' : 'hidden' }"
+              disable-transitions
               size="small"
               type="info">
               {{ item.nextCount }}
@@ -409,6 +412,10 @@ onUnmounted(() => {
       flex: 1;
       max-width: 160px;
       margin: 0 1px;
+    }
+
+    .el-button {
+      box-shadow: 0 0 2px 1px #fff;
     }
 
     .el-button+.el-button {

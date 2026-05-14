@@ -40,6 +40,10 @@ export type DeepSeekSaveMessage = {
    * 是否收藏
    */
   mark?: boolean;
+  /**
+   * 消息总 tokens 数
+   */
+  total_tokens: number;
 } & DeepSeekMessage;
 
 export type DeepSeekRequest = {
@@ -73,6 +77,11 @@ export type DeepSeekResponseChunk = {
   created: number;
   model: string;
   choices: DeepSeekResponseChoice[];
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }
 }
 
 export type DeepSeekResponseChoice = {
@@ -82,6 +91,12 @@ export type DeepSeekResponseChoice = {
   };
   index: number;
   finish_reason: string | null;
+}
+
+export type DeepSeekResponseChat = {
+  content: string | null;
+  reasoning_content: string | null;
+  total_tokens?: number;
 }
 
 export class DeepSeekClient {
@@ -142,7 +157,7 @@ export class DeepSeekClient {
   async *createStreamingChatCompletion(
     params: DeepSeekRequest,
     abortSignal?: AbortSignal,
-  ): AsyncGenerator<DeepSeekResponseChoice, number, unknown> {
+  ): AsyncGenerator<DeepSeekResponseChat, number, unknown> {
     const payload: DeepSeekRequest = {
       ...params,
       stream: true,
@@ -198,7 +213,11 @@ export class DeepSeekClient {
             // console.log('Parsed chunk:', parsed);
             const choice = parsed.choices[0];
             if (choice) {
-              yield choice;
+              yield {
+                content: choice.delta.content,
+                reasoning_content: choice.delta.reasoning_content,
+                total_tokens: parsed.usage?.total_tokens,
+              };
             }
           } catch (error) {
             console.error('Error parsing chunk:', error);

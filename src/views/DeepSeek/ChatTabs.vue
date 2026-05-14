@@ -91,6 +91,7 @@
           </el-icon>
           <el-tag
             class="tag"
+            disable-transitions
             size="small"
             type="info">
             {{ Object.keys(item.messages).length }}

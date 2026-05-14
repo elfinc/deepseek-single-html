@@ -2,6 +2,9 @@ import { chatStore, DeepSeekClient, setDeleteKey, isDeletedKey, type DeepSeekMes
 import { computed, nextTick, reactive, ref, toRaw, watch, type Ref } from "vue";
 
 
+export const MAX_TOKENS = 393216;
+
+
 /**
  * 对话保存信息
  */
@@ -177,6 +180,7 @@ export class ChatManager {
       content: this.inputText.value,
       reasoning_content: '',
       summary: '',
+      total_tokens: this.inputText.value.length * 0.5,
     });
     if (this.messageList.value.length == 0) {
       this.firstKey.value = key;
@@ -190,6 +194,7 @@ export class ChatManager {
       const nextMessage = this.messageList.value[index];
       if (prevMessage) {
         prevMessage.nextKey = key;
+        newItem.total_tokens += prevMessage.total_tokens;
       } else {
         this.firstKey.value = key;
       }
@@ -200,6 +205,7 @@ export class ChatManager {
       const prevMessage = this.messageList.value[this.messageList.value.length - 1];
       if (prevMessage) {
         prevMessage.nextKey = key;
+        newItem.total_tokens += prevMessage.total_tokens;
       } else {
         this.firstKey.value = key;
       }
@@ -376,6 +382,7 @@ export class ChatManager {
       role,
       content,
       reasoning_content: '',
+      total_tokens: (prev?.total_tokens || 0) + content.length * 0.5,
     };
     this.messages[newKey] = newItem;
     this.isLocal.value = false;
@@ -421,6 +428,7 @@ export class ChatManager {
         role: 'assistant',
         content: '',
         reasoning_content: '',
+        total_tokens: prevMessage.total_tokens || 0,
       });
       this.messages[key] = message;
       const loadingMessage = reactive({ message, controller, retryCount: 0 });
@@ -434,7 +442,7 @@ export class ChatManager {
 
       const params = {
         messages,
-        max_tokens: 393216,
+        max_tokens: MAX_TOKENS,
         temperature: this.temperature.value,
         top_p: 1,
         model: 'deepseek-v4-pro',
@@ -463,20 +471,24 @@ export class ChatManager {
           }
           break;
         }
-        const chunk = value;
-        if (chunk.delta.content) {
+        if (value.content) {
           if (!gotContent) {
             gotContent = true;
             this.hasExpand[`${message.key}_content`] = true;
           }
-          message.content += chunk.delta.content;
+          message.content += value.content;
+          message.total_tokens += value.content.length * 0.5;
         }
-        if (chunk.delta.reasoning_content) {
+        if (value.reasoning_content) {
           if (!gotReasoning) {
             gotReasoning = true;
             this.hasExpand[`${message.key}_content`] = true;
           }
-          message.reasoning_content += chunk.delta.reasoning_content;
+          message.reasoning_content += value.reasoning_content;
+          message.total_tokens += value.reasoning_content.length * 0.5;
+        }
+        if (value.total_tokens) {
+          message.total_tokens = value.total_tokens;
         }
         this.isLocal.value = false;
         this.saveChat();
