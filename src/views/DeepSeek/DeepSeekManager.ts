@@ -1,6 +1,6 @@
 import { ref, watch, reactive, shallowReactive } from 'vue'
 import { ChatManager, type ChatSaveData } from './ChatManager';
-import { chatStore, setDeleteKey, isDeletedKey } from '@/utils/DeepSeek';
+import { chatStore, setDeleteKey, isDeletedKey, DeepSeekClient } from '@/utils/DeepSeek';
 import dayjs from 'dayjs';
 
 export class DeepSeekManager {
@@ -8,6 +8,8 @@ export class DeepSeekManager {
   currentChatKey = ref<number | null>(null);
 
   async init() {
+    const appkey = localStorage.getItem('DeepSeekAPIKey') || '';
+    DeepSeekClient.getInstance(appkey);
     await this.initChatList();
     watch(() => this.currentChatKey.value, (value) => {
       if (value) {

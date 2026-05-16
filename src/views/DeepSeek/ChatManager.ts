@@ -33,6 +33,8 @@ export class ChatManager {
 
   static NEW_CHAT_LABEL = '新对话';
 
+  static hasShowedKeys = {} as { [key: number]: boolean };
+
   /**
    * 所有消息
    */

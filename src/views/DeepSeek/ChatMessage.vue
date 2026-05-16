@@ -227,38 +227,6 @@
         {{ (msg.reasoning_content?.length ?? 0) + msg.content.length }}
       </div>
     </div>
-
-    <el-dialog
-      v-model="editVisible"
-      title="修改"
-      :fullscreen="fullscreenDialog"
-      append-to-body
-      destroy-on-close
-      align-center
-      width="80%">
-      <div
-        class="edit-container"
-        :class="{ fullscreen: fullscreenDialog }">
-        <v-md-editor
-          v-model="editContent"
-          :toolbar="{ save: false }"
-          mode="edit">
-        </v-md-editor>
-      </div>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button
-            type="primary"
-            :disabled="editContent == msg.content"
-            @click="saveMessage()">
-            修改
-          </el-button>
-          <el-button type="primary" @click="saveMessage(true)">
-            新分支
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -277,6 +245,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   openChatFlow: [number];
+  openChatEditor: [];
 }>();
 
 const messageList = computed(() => props.chat.messageList.value);
@@ -348,32 +317,9 @@ function switchToMessage(key: number) {
   props.chat.switchToMessage(key);
 }
 
-const editVisible = ref<boolean>(false);
-const editContent = ref<string>('');
-
 function edit() {
-  editContent.value = props.msg.content;
-  editVisible.value = true;
+  emit('openChatEditor');
 }
-
-function saveMessage(isAdd = false) {
-  props.chat.saveMessage(props.msg.key, editContent.value, isAdd);
-  editVisible.value = false;
-}
-
-const fullscreenDialog = ref<boolean>(false);
-function updateFullscreenDialog() {
-  fullscreenDialog.value = window.innerWidth < 1000;
-}
-
-onMounted(() => {
-  updateFullscreenDialog();
-  window.addEventListener('resize', updateFullscreenDialog);
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateFullscreenDialog);
-})
 </script>
 
 <style lang="scss" scoped>

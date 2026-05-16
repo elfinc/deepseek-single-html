@@ -1,4 +1,5 @@
 import localforage from 'localforage';
+import { reactive } from 'vue';
 
 const fileKey = (document.documentElement.outerHTML).match(/_DSFILEKEY_=\"([\s\S]*?)\";_DSFILEKEY_/)?.[1] || '';
 
@@ -101,24 +102,31 @@ export type DeepSeekResponseChat = {
 
 export class DeepSeekClient {
   private static BASE_URL = 'https://api.deepseek.com';
-  static instances: Record<string, DeepSeekClient> = {};
+  static instance?: DeepSeekClient;
 
-  private apiKey: string;
-  private balanceCache: { value: number; timestamp: number } | null = null;
-
-  private constructor(apiKey: string) {
-    if (!apiKey) throw new Error('API key is required');
-    this.apiKey = apiKey;
-  }
+  data = reactive({
+    apiKey: '',
+    balance: null as number | null,
+    balancePromise: null as Promise<number> | null,
+    timestamp: 0,
+  });
 
   /**
    * 获取 DeepSeekClient 实例，基于 API key 进行单例管理
    */
-  static getInstance(apiKey: string) {
-    if (!DeepSeekClient.instances[apiKey]) {
-      DeepSeekClient.instances[apiKey] = new DeepSeekClient(apiKey);
+  static getInstance(apiKey: string): DeepSeekClient {
+    let instance = DeepSeekClient.instance;
+    if (!instance) {
+      instance = DeepSeekClient.instance = new DeepSeekClient();
     }
-    return DeepSeekClient.instances[apiKey];
+    if (instance.data.apiKey !== apiKey) {
+      instance.data.apiKey = apiKey;
+      instance.data.balance = null;
+      instance.data.balancePromise = null;
+      instance.data.timestamp = 0;
+      instance.getBalance(true);
+    }
+    return instance;
   }
 
   /**
@@ -134,7 +142,7 @@ export class DeepSeekClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': `Bearer ${this.data.apiKey}`,
       },
       body: JSON.stringify(payload),
     });
@@ -167,7 +175,7 @@ export class DeepSeekClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': `Bearer ${this.data.apiKey}`,
       },
       body: JSON.stringify(payload),
       signal: abortSignal, // 绑定 AbortSignal
@@ -235,29 +243,54 @@ export class DeepSeekClient {
   /**
    * 查询余额
    */
-  async getBalance() {
+  async getBalance(force = false): Promise<number> {
+    if (!this.data.apiKey) {
+      throw new Error('API Key is not set');
+    }
+
     const now = Date.now();
-    if (this.balanceCache && (now - this.balanceCache.timestamp < 5 * 60 * 1000)) {
-      return this.balanceCache.value;
+    const { apiKey, balance, timestamp } = this.data;
+
+    if (!force && balance !== null && now - timestamp < 5 * 60 * 1000) {
+      return balance;
     }
 
-    const response = await fetch(`${DeepSeekClient.BASE_URL}/user/balance`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-    });
+    const getPromise = async () => {
+      const response = await fetch(`${DeepSeekClient.BASE_URL}/user/balance`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`API Error [${response.status}]: ${errorData.message || 'Unknown error'}`);
+      if (apiKey !== this.data.apiKey) {
+        throw new Error('API Key has changed');
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`API Error [${response.status}]: ${errorData.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const balance = +data.balance_infos[0].total_balance || 0;
+      this.data.balance = balance;
+      this.data.timestamp = now;
+      return balance;
+    };
+
+    if (this.data.balancePromise) {
+      return this.data.balancePromise;
     }
 
-    const data = await response.json();
-    const balance = +data.balance_infos[0].total_balance || 0;
-    this.balanceCache = { value: balance, timestamp: now };
-    return balance;
+    this.data.balancePromise = getPromise();
+    try {
+      const balance = await this.data.balancePromise;
+      return balance;
+    } finally {
+      this.data.balancePromise = null;
+    }
   }
 
   /**
