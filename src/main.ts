@@ -1,12 +1,11 @@
 
 (window as any)._DSHTML_ = document.documentElement.outerHTML;
 
-import logoBase64 from '@/assets/favicon.png';
 document.addEventListener('DOMContentLoaded', () => {
   const link = document.createElement('link');
   link.rel = 'icon';
   link.type = 'image/png';
-  link.href = logoBase64;
+  link.href = 'https://elfinc.github.io/deepseek-single-html/favicon.webp';
   document.head.appendChild(link);
 });
 

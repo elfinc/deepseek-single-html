@@ -287,7 +287,7 @@ function exportData() {
   width: 240px;
   height: 240px;
   transform: rotate(-42deg);
-  background-image: url(@/assets/favicon.png);
+  background-image: url('https://elfinc.github.io/deepseek-single-html/favicon.webp');
   background-size: contain;
   background-repeat: no-repeat;
   opacity: 0.3;
