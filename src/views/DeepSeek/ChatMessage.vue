@@ -600,7 +600,7 @@ function edit() {
 @media screen and (max-width: 1000px) {
   .chat-message {
     .options {
-      margin: 0 10px;
+      margin: 0 10px 10px 0;
     }
 
     .reasoning_content {

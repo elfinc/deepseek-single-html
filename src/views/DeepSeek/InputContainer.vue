@@ -3,10 +3,10 @@
     <el-input
       type="textarea"
       v-model="inputText"
-      @keyup="enter"
+      @keydown="enter"
       :autosize="{ minRows: 1, maxRows: 8 }"
-      @dblclick="emit('openChatEditor', inputText)"
-      placeholder="Enter 换行，Ctrl+Enter 发送，双击打开编辑器"
+      @pointerdown="dblClick"
+      placeholder="Ctrl+Enter 发送，双击打开编辑器"
       clearable />
     <el-button
       @click="send()"
@@ -177,8 +177,21 @@ function expandAll(expanded: boolean) {
   props.chat.expandAll(expanded);
 }
 
+
+let lastTapTime = 0
+
+function dblClick() {
+  const now = Date.now()
+  if (now - lastTapTime < 300) {
+    emit('openChatEditor', inputText.value);
+    lastTapTime = 0
+  } else {
+    lastTapTime = now
+  }
+}
+
 function enter(e: KeyboardEvent) {
-  if (e.key === 'Enter' && e.ctrlKey) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.repeat) {
     send();
   }
 }
