@@ -168,6 +168,19 @@
           circle>
         </el-button>
       </el-tooltip>
+      <el-popconfirm title="导出当前分支到此消息为止的聊天记录?" @confirm="exportBranch(msg.key)">
+        <template #reference>
+          <div>
+            <el-tooltip content="导出为MD文档" :enterable="false" :show-after="200" :hide-after="0">
+              <el-button
+                :icon="Download"
+                size="small"
+                circle>
+              </el-button>
+            </el-tooltip>
+          </div>
+        </template>
+      </el-popconfirm>
       <el-tooltip v-if="chat.hasExpand[`${msg.key}_content`]" content="折叠" :enterable="false" :show-after="200" :hide-after="0">
         <el-button
           @click="expand(msg.key)"
@@ -234,7 +247,8 @@
 import type { DeepSeekSaveMessage } from '@/utils/DeepSeek';
 import { computed, onMounted, onUnmounted, ref, watch, type UnwrapRef } from 'vue';
 import type { ChatManager } from './ChatManager';
-import { Delete, Upload, ArrowDown, ArrowUp, Edit, Plus, Refresh, Minus, Loading, StarFilled, Star, Grape } from '@element-plus/icons-vue';
+import { Delete, Upload, ArrowDown, ArrowUp, Edit, Plus, Refresh, Minus, Loading, StarFilled, Star, Grape, Download } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
 import dayjs from 'dayjs';
 
 const props = defineProps<{
@@ -319,6 +333,14 @@ function switchToMessage(key: number) {
 
 function edit() {
   emit('openChatEditor');
+}
+
+function exportBranch(key: number) {
+  if (props.chat.exportBranchMarkdown(key)) {
+    ElMessage.success('文档已导出');
+  } else {
+    ElMessage.warning('没有可导出的聊天记录');
+  }
 }
 </script>
 

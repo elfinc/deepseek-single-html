@@ -355,6 +355,58 @@ export class ChatManager {
     this.saveChat();
   }
 
+  getBranchMessages(targetKey: number) {
+    const list: DeepSeekSaveMessage[] = [];
+    const hasKey = {} as { [key: number]: boolean };
+    let key = targetKey;
+    while (key && !hasKey[key]) {
+      const message = this.messages[key];
+      if (!message) {
+        break;
+      }
+      list.unshift(message);
+      hasKey[key] = true;
+      key = this.prevKeyMap.value[key];
+    }
+    return list;
+  }
+
+  getBranchMarkdown(targetKey: number) {
+    const messages = this.getBranchMessages(targetKey);
+    const separator = '\n\n---\n---\n\n';
+    return messages.map((message) => {
+      const parts = [
+        `## role: ${message.role}`,
+        message.content || '',
+      ];
+      return parts.join('\n\n').trimEnd();
+    }).join(separator);
+  }
+
+  exportBranchMarkdown(targetKey: number) {
+    const markdown = this.getBranchMarkdown(targetKey);
+    if (!markdown) {
+      return false;
+    }
+    const fileName = this.getBranchMarkdownFileName(targetKey);
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileName}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return true;
+  }
+
+  private getBranchMarkdownFileName(targetKey: number) {
+    const label = (this.label.value || ChatManager.NEW_CHAT_LABEL)
+      .replace(/[\\/:*?"<>|\x00-\x1F]/g, '_')
+      .replace(/^[ .]+|[ .]+$/g, '')
+      .slice(0, 80) || ChatManager.NEW_CHAT_LABEL;
+    return `${label}-${targetKey}`;
+  }
+
   saveMessage(editKey: number, content: string, isAdd = false) {
     const editItem = this.messageList.value.find((item) => item.key === editKey);
     if (!editItem) {
