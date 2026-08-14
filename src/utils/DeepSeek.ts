@@ -49,7 +49,7 @@ export type DeepSeekSaveMessage = {
 
 export type DeepSeekRequest = {
   messages: DeepSeekMessage[];
-  model?: 'deepseek-v4-pro' | 'deepseek-v4-flash';
+  model?: string;
   thinking?: {
     type: 'enabled' | 'disabled';
   }
@@ -312,5 +312,40 @@ export class DeepSeekClient {
       error,
     };
   }
-}
 
+  /**
+   * 获取模型列表
+   */
+  async getModels(): Promise<string[]> {
+    const apiKey = this.data.apiKey;
+    if (!apiKey) {
+      throw new Error('API Key is not set');
+    }
+
+    const response = await fetch(`${DeepSeekClient.BASE_URL}/models`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    if (apiKey !== this.data.apiKey) {
+      throw new Error('API Key has changed');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message = errorData.error?.message || errorData.message || 'Unknown error';
+      throw new Error(`API Error [${response.status}]: ${message}`);
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data.data)) {
+      throw new Error('Invalid models response');
+    }
+    return data.data
+      .map((model: { id?: unknown }) => model.id)
+      .filter((id: unknown): id is string => typeof id === 'string');
+  }
+}

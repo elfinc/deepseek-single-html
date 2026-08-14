@@ -449,9 +449,10 @@ export class ChatManager {
     if (apiKey) {
       const client = DeepSeekClient.getInstance(apiKey);
       error = (await client.checkKeyValid()).error;
-      if (!error) {
+      if (!error && localStorage.getItem('DeepSeekChatModel')) {
         return apiKey;
       }
+      error ||= '请选择模型';
     } else {
       error = '请设置 API Key';
     }
@@ -467,6 +468,12 @@ export class ChatManager {
     const apiKey = await this.getApiKey();
     const client = DeepSeekClient.getInstance(apiKey);
     const controller = new AbortController();
+
+    const chatModel = localStorage.getItem('DeepSeekChatModel');
+    if (!chatModel) {
+      throw new Error('请设置模型');
+    }
+
     try {
       const messages: DeepSeekMessage[] = this.messageList.value.map((message) => ({
         content: message.content,
@@ -499,7 +506,7 @@ export class ChatManager {
         max_tokens: MAX_TOKENS,
         temperature: this.temperature.value,
         top_p: 1,
-        model: 'deepseek-v4-pro',
+        model: chatModel,
         thinking: {
           // type: this.openReasoning.value ? 'enabled' : 'disabled',
           type: 'enabled',
