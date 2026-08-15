@@ -1,4 +1,4 @@
-import { chatStore, DeepSeekClient, setDeleteKey, isDeletedKey, type DeepSeekMessage, type DeepSeekSaveMessage } from "@/utils/DeepSeek";
+import { chatStore, DeepSeekClient, normalizeThinkingType, setDeleteKey, isDeletedKey, type DeepSeekMessage, type DeepSeekSaveMessage } from "@/utils/DeepSeek";
 import { computed, nextTick, reactive, ref, toRaw, watch, type Ref } from "vue";
 
 
@@ -474,6 +474,8 @@ export class ChatManager {
       throw new Error('请设置模型');
     }
 
+    const thinkingType = normalizeThinkingType(localStorage.getItem('DeepSeekThinkingType'));
+
     try {
       const messages: DeepSeekMessage[] = this.messageList.value.map((message) => ({
         content: message.content,
@@ -508,10 +510,9 @@ export class ChatManager {
         top_p: 1,
         model: chatModel,
         thinking: {
-          // type: this.openReasoning.value ? 'enabled' : 'disabled',
-          type: 'enabled',
+          type: thinkingType,
         },
-        reasoning_effort: 'high',
+        ...(thinkingType === 'enabled' ? { reasoning_effort: 'high' } : {}),
       } as const;
       let gen = client.createStreamingChatCompletion(params, controller.signal);
       loadingMessage.retryCount = 0;

@@ -45,6 +45,9 @@
             </el-option>
           </el-select>
         </el-form-item>
+        <el-form-item label="思考">
+          <el-switch v-model="thinkingType" active-value="enabled" inactive-value="disabled" :disabled="loading" />
+        </el-form-item>
       </el-form>
     </div>
     <template #footer>
@@ -70,7 +73,7 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { QuestionFilled } from '@element-plus/icons-vue';
-import { DeepSeekClient } from '@/utils/DeepSeek';
+import { DeepSeekClient, normalizeThinkingType, type DeepSeekThinkingType } from '@/utils/DeepSeek';
 import { Loading } from '@element-plus/icons-vue';
 
 const refInput = ref<HTMLInputElement>();
@@ -83,6 +86,8 @@ const balance = ref(0);
 
 const chatModel = ref('');
 const chatModels = ref<{ label: string, value: string }[]>([]);
+
+const thinkingType = ref<DeepSeekThinkingType>('enabled');
 
 const promise = ref<Promise<string>>();
 const resolve = ref((value: string | PromiseLike<string>) => { });
@@ -100,6 +105,7 @@ function open(tips?: string) {
   inputText.value = apikey;
   chatModel.value = localStorage.getItem('DeepSeekChatModel') || '';
   chatModels.value = [];
+  thinkingType.value = normalizeThinkingType(localStorage.getItem('DeepSeekThinkingType'));
   balance.value = 0;
   errorTips.value = tips || '';
   visible.value = true;
@@ -205,6 +211,7 @@ async function save() {
   visible.value = false;
   localStorage.setItem('DeepSeekAPIKey', value);
   localStorage.setItem('DeepSeekChatModel', chatModelValue);
+  localStorage.setItem('DeepSeekThinkingType', thinkingType.value);
   resolve.value(value);
 }
 

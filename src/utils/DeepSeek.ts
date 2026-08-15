@@ -47,11 +47,17 @@ export type DeepSeekSaveMessage = {
   total_tokens: number;
 } & DeepSeekMessage;
 
+export type DeepSeekThinkingType = 'enabled' | 'disabled';
+
+export function normalizeThinkingType(value: string | null): DeepSeekThinkingType {
+  return value === 'disabled' ? 'disabled' : 'enabled';
+}
+
 export type DeepSeekRequest = {
   messages: DeepSeekMessage[];
   model?: string;
   thinking?: {
-    type: 'enabled' | 'disabled';
+    type: DeepSeekThinkingType;
   }
   stream?: boolean;
   /**
