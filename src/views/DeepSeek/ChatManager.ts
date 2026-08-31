@@ -133,6 +133,7 @@ export class ChatManager {
   temperature: Ref<number>;
   openReasoning: Ref<boolean>;
   refChatMessages = ref();
+  onAnswerComplete?: () => Promise<void>;
 
   constructor(opt: {
     key: number,
@@ -476,6 +477,7 @@ export class ChatManager {
 
     const thinkingType = normalizeThinkingType(localStorage.getItem('DeepSeekThinkingType'));
 
+    let completed = false;
     try {
       const messages: DeepSeekMessage[] = this.messageList.value.map((message) => ({
         content: message.content,
@@ -558,6 +560,7 @@ export class ChatManager {
           this.scrollToBottom(true);
         }
       }
+      completed = true;
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('请求被用户中止');
@@ -566,6 +569,14 @@ export class ChatManager {
       }
     } finally {
       delete this.loadingMessages[key];
+      if (completed) {
+        try {
+          await this.saveChat();
+          await this.onAnswerComplete?.();
+        } catch (error) {
+          console.error('同步聊天存档失败：', error);
+        }
+      }
     }
   }
 
@@ -593,7 +604,7 @@ export class ChatManager {
 
   saveChat() {
     const data = this.getSaveData();
-    chatStore.setItem(String(this.key), data);
+    return chatStore.setItem(String(this.key), data);
   }
 
   getSaveData(): ChatSaveData {

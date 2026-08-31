@@ -7,6 +7,50 @@
     append-to-body
     align-center
     width="720px">
+    <div class="drive-panel">
+      <div class="drive-info">
+        <div class="drive-title">
+          <span>Google Drive</span>
+          <el-tag v-if="driveState.connected" type="success" size="small">自动同步已开启</el-tag>
+          <el-tag v-else type="info" size="small">未连接</el-tag>
+        </div>
+        <div v-if="!driveState.configured" class="drive-description error">
+          未配置 VITE_GOOGLE_CLIENT_ID，暂时无法连接。
+        </div>
+        <div v-else-if="!driveState.ready && !driveState.error" class="drive-description">
+          正在加载 Google 登录组件…
+        </div>
+        <div v-else-if="driveState.error" class="drive-description error">
+          {{ driveState.error }}
+        </div>
+        <div v-else class="drive-description">
+          <template v-if="driveState.connected">
+            AI 回复接收完成后会自动同步；最近同步：{{ lastSyncText }}
+          </template>
+          <template v-else>
+            登录后，存档将保存到 Drive 的应用专属私有目录。
+          </template>
+        </div>
+      </div>
+      <div class="drive-actions">
+        <template v-if="driveState.connected">
+          <el-button
+            :loading="driveState.syncing"
+            @click="syncGoogleDrive">
+            立即同步
+          </el-button>
+          <el-button @click="disconnectGoogleDrive">断开</el-button>
+        </template>
+        <el-button
+          v-else
+          type="primary"
+          :disabled="!driveState.configured || !driveState.ready"
+          :loading="connectLoading"
+          @click="connectGoogleDrive">
+          登录 Google Drive
+        </el-button>
+      </div>
+    </div>
     <div class="table-container">
       <el-auto-resizer>
         <template #default="{ height, width }">
@@ -51,7 +95,7 @@
 <script lang="tsx" setup>
 import { ref, computed, unref } from 'vue';
 import type { DeepSeekManager } from './DeepSeekManager';
-import { ElCheckbox, ElMessageBox } from 'element-plus'
+import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus'
 import type { FunctionalComponent } from 'vue'
 import type { CheckboxValueType, Column, RowEventHandlerParams, RowProps } from 'element-plus'
 import dayjs from 'dayjs'
@@ -82,6 +126,15 @@ const SelectionCell: FunctionalComponent<SelectionCellProps> = ({
 
 const visible = ref(false);
 const isolate = ref(true);
+const driveState = props.DSManager.googleDrive.state;
+const connectLoading = ref(false);
+
+const lastSyncText = computed(() => {
+  if (!driveState.lastSyncedAt) {
+    return '尚未同步';
+  }
+  return dayjs(driveState.lastSyncedAt).format('YYYY-MM-DD HH:mm:ss');
+});
 
 const data = ref<{
   key: number;
@@ -157,6 +210,33 @@ function open() {
   }));
 }
 
+async function connectGoogleDrive() {
+  connectLoading.value = true;
+  try {
+    await props.DSManager.connectGoogleDrive();
+    open();
+    ElMessage.success('Google Drive 已连接，存档已同步');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Google Drive 连接失败');
+  } finally {
+    connectLoading.value = false;
+  }
+}
+
+async function syncGoogleDrive() {
+  try {
+    await props.DSManager.syncGoogleDrive();
+    ElMessage.success('Google Drive 同步完成');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Google Drive 同步失败');
+  }
+}
+
+function disconnectGoogleDrive() {
+  props.DSManager.googleDrive.disconnect();
+  ElMessage.success('已断开 Google Drive');
+}
+
 async function remove() {
   await ElMessageBox.confirm(`确定删除所选的 ${selected.value.length} 个对话吗？`, '提示');
   selected.value.forEach(row => {
@@ -200,8 +280,51 @@ defineExpose({
 
 <style lang="scss" scoped>
 .table-container {
-  height: 65vh;
+  height: 58vh;
   overflow: hidden;
+}
+
+.drive-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fafafa;
+
+  .drive-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .drive-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .drive-description {
+    color: #606266;
+    font-size: 13px;
+    line-height: 1.5;
+
+    &.error {
+      color: #f56c6c;
+    }
+  }
+
+  .drive-actions {
+    display: flex;
+    flex: none;
+
+    > * {
+      margin-left: 8px;
+    }
+  }
 }
 
 .dialog-footer {
@@ -211,6 +334,17 @@ defineExpose({
     flex: 1;
     display: flex;
     padding: 0 8px;
+  }
+}
+
+@media screen and (max-width: 720px) {
+  .drive-panel {
+    align-items: stretch;
+    flex-direction: column;
+
+    .drive-actions > *:first-child {
+      margin-left: 0;
+    }
   }
 }
 </style>
