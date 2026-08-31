@@ -12,6 +12,7 @@ export class DeepSeekManager {
     const appkey = localStorage.getItem('DeepSeekAPIKey') || '';
     DeepSeekClient.getInstance(appkey);
     await this.initChatList();
+    void this.restoreGoogleDriveConnection();
     watch(() => this.currentChatKey.value, (value) => {
       if (value) {
         localStorage.setItem('lastChatKey', String(value));
@@ -104,6 +105,21 @@ export class DeepSeekManager {
     } catch (error) {
       this.googleDrive.state.error = error instanceof Error ? error.message : String(error);
       throw error;
+    }
+  }
+
+  private async restoreGoogleDriveConnection() {
+    const restored = await this.googleDrive.restoreConnection();
+    if (!restored) {
+      return;
+    }
+    try {
+      const remote = await this.googleDrive.download();
+      if (remote) {
+        await this.mergeGoogleDriveArchive(remote);
+      }
+    } catch (error) {
+      this.googleDrive.state.error = error instanceof Error ? error.message : String(error);
     }
   }
 

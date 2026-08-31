@@ -20,6 +20,9 @@
         <div v-else-if="!driveState.ready && !driveState.error" class="drive-description">
           正在加载 Google 登录组件…
         </div>
+        <div v-else-if="driveState.restoring" class="drive-description">
+          正在恢复 Google Drive 连接…
+        </div>
         <div v-else-if="driveState.error" class="drive-description error">
           {{ driveState.error }}
         </div>
@@ -44,8 +47,8 @@
         <el-button
           v-else
           type="primary"
-          :disabled="!driveState.configured || !driveState.ready"
-          :loading="connectLoading"
+          :disabled="!driveState.configured || !driveState.ready || driveState.restoring"
+          :loading="connectLoading || driveState.restoring"
           @click="connectGoogleDrive">
           登录 Google Drive
         </el-button>

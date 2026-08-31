@@ -6,6 +6,7 @@ const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const ARCHIVE_FILE_NAME = 'deepseek-chat-archive.json';
+const AUTO_CONNECT_KEY = 'GoogleDriveAutoConnect';
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -46,6 +47,7 @@ export type GoogleDriveArchiveData = {
 export type GoogleDriveArchiveState = {
   configured: boolean;
   ready: boolean;
+  restoring: boolean;
   connected: boolean;
   syncing: boolean;
   lastSyncedAt: string;
@@ -97,6 +99,7 @@ export class GoogleDriveArchive {
   readonly state = reactive<GoogleDriveArchiveState>({
     configured: !!this.clientId,
     ready: false,
+    restoring: false,
     connected: false,
     syncing: false,
     lastSyncedAt: '',
@@ -124,28 +127,30 @@ export class GoogleDriveArchive {
     if (!this.state.ready) {
       throw new Error('Google 登录组件仍在加载，请稍后重试');
     }
-    const oauth2 = window.google?.accounts.oauth2;
-    if (!oauth2) {
-      throw new Error('Google 登录组件不可用');
-    }
+    await this.requestToken();
+    localStorage.setItem(AUTO_CONNECT_KEY, '1');
+  }
 
-    const response = await new Promise<GoogleTokenResponse>((resolve, reject) => {
-      const client = oauth2.initTokenClient({
-        client_id: this.clientId,
-        scope: DRIVE_SCOPE,
-        include_granted_scopes: true,
-        callback: resolve,
-        error_callback: error => reject(new Error(error.type || 'Google 登录失败')),
-      });
-      client.requestAccessToken();
-    });
-
-    if (!response.access_token) {
-      throw new Error(response.error_description || response.error || 'Google 登录失败');
+  /**
+   * 页面刷新后重新申请短期 token。只持久化连接意愿，不持久化 access token。
+   */
+  async restoreConnection() {
+    if (!this.clientId || localStorage.getItem(AUTO_CONNECT_KEY) !== '1') {
+      return false;
     }
-    this.accessToken = response.access_token;
-    this.state.connected = true;
+    this.state.restoring = true;
     this.state.error = '';
+    try {
+      await loadGoogleIdentityScript();
+      this.state.ready = true;
+      await this.requestToken('');
+      return true;
+    } catch (error) {
+      this.state.error = `自动恢复 Google Drive 连接失败：${getErrorMessage(error)}`;
+      return false;
+    } finally {
+      this.state.restoring = false;
+    }
   }
 
   disconnect() {
@@ -154,6 +159,7 @@ export class GoogleDriveArchive {
     this.state.connected = false;
     this.state.syncing = false;
     this.state.error = '';
+    localStorage.removeItem(AUTO_CONNECT_KEY);
     if (token && window.google?.accounts.oauth2) {
       window.google.accounts.oauth2.revoke(token);
     }
@@ -254,6 +260,29 @@ export class GoogleDriveArchive {
     } | null;
     const apiMessage = typeof body?.error === 'string' ? body.error : body?.error?.message;
     throw new Error(apiMessage || `Google Drive 请求失败 (${response.status})`);
+  }
+
+  private async requestToken(prompt?: string) {
+    const oauth2 = window.google?.accounts.oauth2;
+    if (!oauth2) {
+      throw new Error('Google 登录组件不可用');
+    }
+    const response = await new Promise<GoogleTokenResponse>((resolve, reject) => {
+      const client = oauth2.initTokenClient({
+        client_id: this.clientId,
+        scope: DRIVE_SCOPE,
+        include_granted_scopes: true,
+        callback: resolve,
+        error_callback: error => reject(new Error(error.type || 'Google 登录失败')),
+      });
+      client.requestAccessToken(prompt === undefined ? undefined : { prompt });
+    });
+    if (!response.access_token) {
+      throw new Error(response.error_description || response.error || 'Google 登录失败');
+    }
+    this.accessToken = response.access_token;
+    this.state.connected = true;
+    this.state.error = '';
   }
 
   private assertConnected() {
