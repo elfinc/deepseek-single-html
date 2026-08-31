@@ -100,6 +100,14 @@
       </el-scrollbar>
     </div>
 
+    <a
+      class="privacy-link"
+      href="./privacy.html"
+      target="_blank"
+      rel="noopener noreferrer">
+      隐私政策
+    </a>
+
     <LabelEditor ref="refLabelEditor" :DSManager="DSManager">
     </LabelEditor>
 
@@ -192,7 +200,7 @@ function exportData() {
     left: 0;
     top: 40px;
     width: 100%;
-    bottom: 0;
+    bottom: 28px;
   }
 
   .chat-item {
@@ -276,6 +284,21 @@ function exportData() {
 
     &.active {
       background: #fffa;
+    }
+  }
+
+  .privacy-link {
+    position: absolute;
+    left: 12px;
+    bottom: 7px;
+    z-index: 2;
+    color: #909399;
+    font-size: 12px;
+    line-height: 18px;
+    text-decoration: none;
+
+    &:hover {
+      color: #409eff;
     }
   }
 }
