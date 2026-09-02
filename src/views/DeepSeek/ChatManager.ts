@@ -619,8 +619,38 @@ export class ChatManager {
     };
   }
 
+  async replaceData(data: ChatSaveData) {
+    this.label.value = data.label;
+    this.firstKey.value = data.firstKey;
+    Object.keys(this.messages).forEach(key => delete this.messages[key]);
+    Object.entries(data.messages).forEach(([key, message]) => {
+      this.messages[key] = message;
+    });
+    this.inputText.value = data.inputText ?? '';
+    this.openReasoning.value = data.openReasoning ?? false;
+    this.temperature.value = data.temperature ?? 1;
+    this.isLocal.value = false;
+    await this.saveChat();
+  }
+
   async mergeData(data: ChatSaveData, overwrite = false): Promise<boolean> {
     let isChanged = false;
+    if (!overwrite) {
+      // 两台设备从同一条消息并发追加时，把远端后继并入本地分支组，避免成为不可见的孤立消息。
+      for (const key in data.messages) {
+        const localMessage = this.messages[key];
+        const remoteMessage = data.messages[key];
+        if (!localMessage?.nextKey || !remoteMessage?.nextKey
+          || localMessage.nextKey === remoteMessage.nextKey) {
+          continue;
+        }
+        const localNext = this.messages[localMessage.nextKey];
+        const remoteNext = data.messages[remoteMessage.nextKey];
+        if (localNext && remoteNext) {
+          remoteNext.groupKey = localNext.groupKey;
+        }
+      }
+    }
     for (const key in data.messages) {
       const isDeleted = await isDeletedKey(this.key, key);
       if (isDeleted) {

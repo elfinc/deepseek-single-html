@@ -28,7 +28,8 @@
         </div>
         <div v-else class="drive-description">
           <template v-if="driveState.connected">
-            AI 回复接收完成后会自动同步；最近同步：{{ lastSyncText }}
+            AI 回复完成后增量同步；最近同步：{{ lastSyncText }}；本次下载
+            {{ driveState.downloadedChats }} 个、上传 {{ driveState.uploadedChats }} 个对话
           </template>
           <template v-else>
             登录后，存档将保存到 Drive 的应用专属私有目录。

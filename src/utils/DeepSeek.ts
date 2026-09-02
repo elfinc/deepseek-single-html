@@ -13,6 +13,11 @@ export const deleteChatStore = localforage.createInstance({
   storeName: 'DeleteChats',
 });
 
+export const driveSyncStore = localforage.createInstance({
+  name: 'DeepSeek' + fileKey,
+  storeName: 'GoogleDriveSync',
+});
+
 export function setDeleteKey(chatKey: number | string, msgKey: number | string = '') {
   deleteChatStore.setItem(`${chatKey}_${msgKey}`, 1);
 }

@@ -1,7 +1,11 @@
 import { ref, watch, shallowReactive } from 'vue'
 import { ChatManager, type ChatSaveData } from './ChatManager';
 import { chatStore, deleteChatStore, setDeleteKey, isDeletedKey, DeepSeekClient } from '@/utils/DeepSeek';
-import { GoogleDriveArchive, type GoogleDriveArchiveData } from '@/services/GoogleDriveArchive';
+import {
+  GoogleDriveArchive,
+  type GoogleDriveRemoteChanges,
+  type GoogleDriveSyncSnapshot,
+} from '@/services/GoogleDriveArchive';
 
 export class DeepSeekManager {
   chatList = shallowReactive<ChatManager[]>([]);
@@ -97,10 +101,6 @@ export class DeepSeekManager {
   async connectGoogleDrive() {
     try {
       await this.googleDrive.connect();
-      const remote = await this.googleDrive.download();
-      if (remote) {
-        await this.mergeGoogleDriveArchive(remote);
-      }
       await this.syncGoogleDrive();
     } catch (error) {
       this.googleDrive.state.error = error instanceof Error ? error.message : String(error);
@@ -114,10 +114,7 @@ export class DeepSeekManager {
       return;
     }
     try {
-      const remote = await this.googleDrive.download();
-      if (remote) {
-        await this.mergeGoogleDriveArchive(remote);
-      }
+      await this.syncGoogleDrive();
     } catch (error) {
       this.googleDrive.state.error = error instanceof Error ? error.message : String(error);
     }
@@ -127,7 +124,10 @@ export class DeepSeekManager {
     if (!this.googleDrive.state.connected) {
       return Promise.resolve();
     }
-    return this.createGoogleDriveArchive().then(data => this.googleDrive.sync(data));
+    return this.googleDrive.sync({
+      getSnapshot: () => this.createGoogleDriveSnapshot(),
+      applyRemoteChanges: changes => this.applyGoogleDriveChanges(changes),
+    });
   }
 
   private createChatManager(data: ConstructorParameters<typeof ChatManager>[0]) {
@@ -136,18 +136,16 @@ export class DeepSeekManager {
     return chat;
   }
 
-  private async createGoogleDriveArchive(): Promise<GoogleDriveArchiveData> {
+  private async createGoogleDriveSnapshot(): Promise<GoogleDriveSyncSnapshot> {
     const deletedKeys = await deleteChatStore.keys();
     return {
-      version: 1,
-      updatedAt: new Date().toISOString(),
       chats: this.chatList.map(chat => chat.getSaveData()),
       deletedKeys,
     };
   }
 
-  private async mergeGoogleDriveArchive(data: GoogleDriveArchiveData) {
-    await Promise.all(data.deletedKeys.map(key => deleteChatStore.setItem(key, 1)));
+  private async applyGoogleDriveChanges(changes: GoogleDriveRemoteChanges) {
+    await Promise.all(changes.deletedKeys.map(key => deleteChatStore.setItem(key, 1)));
 
     for (const chat of [...this.chatList]) {
       if (await isDeletedKey(chat.key)) {
@@ -155,14 +153,19 @@ export class DeepSeekManager {
       }
     }
 
-    for (const remoteChat of data.chats) {
+    for (const remote of changes.chats) {
+      const remoteChat = remote.data;
       if (await isDeletedKey(remoteChat.key)) {
         continue;
       }
       const localChat = this.chatList.find(chat => chat.key === remoteChat.key);
       if (localChat) {
-        await localChat.mergeData(remoteChat, false);
-        await localChat.saveChat();
+        if (remote.localUnchanged && Object.keys(localChat.loadingMessages).length === 0) {
+          await localChat.replaceData(remoteChat);
+        } else {
+          await localChat.mergeData(remoteChat, false);
+          await localChat.saveChat();
+        }
       } else {
         const chat = this.createChatManager(remoteChat);
         this.chatList.push(chat);
