@@ -134,6 +134,7 @@ export class ChatManager {
   openReasoning: Ref<boolean>;
   refChatMessages = ref();
   onAnswerComplete?: () => Promise<void>;
+  onArchiveChange?: (change: PromiseLike<unknown>) => Promise<void>;
 
   constructor(opt: {
     key: number,
@@ -269,16 +270,20 @@ export class ChatManager {
         }
       }
     }
+    const deletionWrites: Promise<unknown>[] = [];
     removeKeys.forEach((key) => {
       delete this.messages[key];
-      setDeleteKey(this.key, key);
+      deletionWrites.push(setDeleteKey(this.key, key));
     });
     this.isLocal.value = false;
-    this.saveChat();
     // 如果为空，则添加一个默认消息
     if (this.messageList.value.length === 0) {
       this.add();
     }
+    this.notifyArchiveChange(Promise.all([
+      this.saveChat(),
+      ...deletionWrites,
+    ]));
   }
 
   refresh(key: number) {
@@ -327,7 +332,7 @@ export class ChatManager {
       this.trackFirstKey(next.key);
     }
     this.isLocal.value = false;
-    this.saveChat();
+    this.notifyArchiveChange();
   }
 
   trackFirstKey(key: number) {
@@ -353,7 +358,7 @@ export class ChatManager {
     this.expandAll(false);
     this.expandAll(true);
     this.scrollToKey(targetKey);
-    this.saveChat();
+    this.notifyArchiveChange();
   }
 
   getBranchMessages(targetKey: number) {
@@ -419,7 +424,7 @@ export class ChatManager {
       if (this.label.value === ChatManager.NEW_CHAT_LABEL && editItem.content) {
         this.label.value = editItem.content;
       }
-      this.saveChat();
+      this.notifyArchiveChange();
       return;
     }
     const prev = this.messageList.value.find((item) => item.nextKey === editItem?.key);
@@ -441,7 +446,7 @@ export class ChatManager {
     };
     this.messages[newKey] = newItem;
     this.isLocal.value = false;
-    this.saveChat();
+    this.notifyArchiveChange();
   }
 
   async getApiKey(): Promise<string> {
@@ -590,16 +595,30 @@ export class ChatManager {
   }
 
   clear() {
+    const deletionWrites: Promise<unknown>[] = [];
     Object.keys(this.messages).forEach((key) => {
       delete this.messages[key];
-      setDeleteKey(this.key, key);
+      deletionWrites.push(setDeleteKey(this.key, key));
     });
     Object.keys(this.loadingMessages).forEach((key) => {
       this.stop(+key);
     });
     this.firstKey.value = undefined;
     this.isLocal.value = false;
-    this.saveChat();
+    this.notifyArchiveChange(Promise.all([
+      this.saveChat(),
+      ...deletionWrites,
+    ]));
+  }
+
+  /** 保存一次用户可见的存档变更，并在本地持久化完成后通知自动同步。 */
+  notifyArchiveChange(change: PromiseLike<unknown> = this.saveChat()) {
+    if (this.onArchiveChange) {
+      return this.onArchiveChange(change);
+    }
+    return Promise.resolve(change).then(() => undefined).catch(error => {
+      console.error('保存聊天存档失败：', error);
+    });
   }
 
   saveChat() {

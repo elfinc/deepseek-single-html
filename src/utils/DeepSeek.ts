@@ -19,7 +19,7 @@ export const driveSyncStore = localforage.createInstance({
 });
 
 export function setDeleteKey(chatKey: number | string, msgKey: number | string = '') {
-  deleteChatStore.setItem(`${chatKey}_${msgKey}`, 1);
+  return deleteChatStore.setItem(`${chatKey}_${msgKey}`, 1);
 }
 
 export async function isDeletedKey(chatKey: number | string, msgKey: number | string = '') {

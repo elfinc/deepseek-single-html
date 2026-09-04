@@ -6,11 +6,19 @@ import {
   type GoogleDriveRemoteChanges,
   type GoogleDriveSyncSnapshot,
 } from '@/services/GoogleDriveArchive';
+import { ArchiveSyncScheduler } from '@/services/ArchiveSyncScheduler';
 
 export class DeepSeekManager {
   chatList = shallowReactive<ChatManager[]>([]);
   currentChatKey = ref<number | null>(null);
   googleDrive = new GoogleDriveArchive();
+  private googleDriveAutoSync = new ArchiveSyncScheduler(
+    () => this.syncGoogleDrive(),
+    error => {
+      console.error('自动同步聊天存档失败：', error);
+      this.googleDrive.state.error = error instanceof Error ? error.message : String(error);
+    },
+  );
 
   async init() {
     const appkey = localStorage.getItem('DeepSeekAPIKey') || '';
@@ -40,14 +48,17 @@ export class DeepSeekManager {
 
   removeChat(key: number) {
     const chatItem = this.chatList.find((item) => item.key === key);
-    if (!chatItem) return;
+    if (!chatItem) return Promise.resolve();
     const index = this.chatList.indexOf(chatItem);
     this.chatList.splice(index, 1);
     if (chatItem.key === this.currentChatKey.value) {
       this.currentChatKey.value = this.chatList[index - 1]?.key ?? this.chatList[0]?.key ?? null;
     }
-    chatStore.removeItem(String(chatItem.key));
-    setDeleteKey(key);
+    const persisted = Promise.all([
+      chatStore.removeItem(String(chatItem.key)),
+      setDeleteKey(key),
+    ]);
+    return this.scheduleGoogleDriveSync(persisted);
   }
 
   async initChatList() {
@@ -130,9 +141,15 @@ export class DeepSeekManager {
     });
   }
 
+  /** 自动同步会等待本地变更落盘，并合并连续触发；错误只记录，不产生未处理的拒绝。 */
+  scheduleGoogleDriveSync(change: PromiseLike<unknown> = Promise.resolve()) {
+    return this.googleDriveAutoSync.schedule(change);
+  }
+
   private createChatManager(data: ConstructorParameters<typeof ChatManager>[0]) {
     const chat = new ChatManager(data);
-    chat.onAnswerComplete = () => this.syncGoogleDrive();
+    chat.onArchiveChange = change => this.scheduleGoogleDriveSync(change);
+    chat.onAnswerComplete = () => this.scheduleGoogleDriveSync();
     return chat;
   }
 

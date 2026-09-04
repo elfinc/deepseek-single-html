@@ -61,7 +61,7 @@ function save() {
   const chat = props.DSManager.chatList.find(chat => chat.key === targetKey.value);
   if (chat) {
     chat.label.value = inputText.value;
-    chat.saveChat();
+    chat.notifyArchiveChange();
   }
   visible.value = false;
 }

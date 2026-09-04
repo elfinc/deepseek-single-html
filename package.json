@@ -8,7 +8,8 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build"
+    "type-check": "vue-tsc --build",
+    "test:archive-sync": "node --test tests/*ArchiveSync.test.mjs tests/ArchiveSyncScheduler.test.mjs"
   },
   "dependencies": {
     "@kangc/v-md-editor": "^2.3.18",

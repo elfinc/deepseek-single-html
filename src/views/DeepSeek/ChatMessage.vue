@@ -320,7 +320,7 @@ function mark(msg: DeepSeekSaveMessage) {
   } else {
     msg.mark = true;
   }
-  props.chat.saveChat();
+  props.chat.notifyArchiveChange();
 }
 
 function expand(key: number) {
